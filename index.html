@@ -80,6 +80,24 @@
       top: 20px;
     }
 
+    @media (max-width: 640px) {
+      .app {
+        flex-direction: column;
+        padding: 12px;
+        gap: 14px;
+      }
+
+      .calendar-panel {
+        width: 100%;
+        min-width: unset;
+        position: static;
+      }
+
+      .items-panel {
+        width: 100%;
+      }
+    }
+
     .cal-controls {
       display: flex;
       gap: 8px;
