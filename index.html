@@ -42,6 +42,24 @@
       box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
 
+    /* toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: transform .3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { background: var(--red); }
+
     .app {
       display: flex;
       gap: 20px;
@@ -114,9 +132,7 @@
       cursor: pointer;
     }
 
-    .cal-day.has-completed:hover {
-      background: var(--green-mid);
-    }
+    .cal-day.has-completed:hover { background: var(--green-mid); }
 
     .cal-day.today {
       background: var(--green) !important;
@@ -134,9 +150,7 @@
       outline-offset: -2px;
     }
 
-    .cal-day.today.selected-day {
-      outline: 2px solid #fff;
-    }
+    .cal-day.today.selected-day { outline: 2px solid #fff; }
 
     .cal-badge {
       font-size: 0.6rem;
@@ -150,7 +164,6 @@
       bottom: 2px;
     }
 
-    /* Day detail panel under calendar */
     .day-detail {
       margin-top: 14px;
       border-top: 1px solid var(--border);
@@ -178,7 +191,6 @@
     }
 
     .day-detail-item:last-child { border-bottom: none; }
-
     .day-detail-item .check { color: var(--green); }
 
     /* ── Items panel ── */
@@ -224,7 +236,6 @@
     .add-btn:hover { background: var(--green-dark); }
     .add-btn:active { transform: scale(.93); }
 
-    /* Add form */
     .add-form {
       background: #f6fdf9;
       border: 1px solid var(--green-mid);
@@ -253,7 +264,6 @@
 
     .form-actions { display: flex; gap: 8px; }
 
-    /* Buttons */
     .btn {
       padding: 7px 16px;
       border: none;
@@ -264,16 +274,14 @@
       transition: background .15s;
     }
 
-    .btn-primary  { background: var(--green);   color: #fff; }
-    .btn-primary:hover { background: var(--green-dark); }
-
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-primary  { background: var(--green); color: #fff; }
+    .btn-primary:hover:not(:disabled)  { background: var(--green-dark); }
     .btn-ghost    { background: #eee; color: #444; }
-    .btn-ghost:hover { background: #ddd; }
+    .btn-ghost:hover:not(:disabled)    { background: #ddd; }
+    .btn-danger   { background: var(--red); color: #fff; }
+    .btn-danger:hover:not(:disabled)   { background: var(--red-dark); }
 
-    .btn-danger   { background: var(--red);   color: #fff; }
-    .btn-danger:hover { background: var(--red-dark); }
-
-    /* Item list */
     .items-list {
       display: flex;
       flex-direction: column;
@@ -288,7 +296,6 @@
 
     .empty-icon { font-size: 2.8rem; margin-bottom: 10px; }
 
-    /* Item card */
     .item-card {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -331,7 +338,6 @@
 
     .item-card.expanded .item-chevron { transform: rotate(180deg); }
 
-    /* Expanded detail */
     .item-detail {
       display: none;
       padding: 14px 16px;
@@ -379,7 +385,6 @@
       flex-wrap: wrap;
     }
 
-    /* Completed section */
     .completed-section {
       margin-top: 22px;
       padding-top: 14px;
@@ -432,28 +437,26 @@
 
 <header>🍈 Honeydew — Honey Do List</header>
 
+<div id="toast"></div>
+
 <div class="app">
 
-  <!-- Calendar panel -->
   <div class="calendar-panel">
     <div class="cal-controls">
       <select id="monthSel"></select>
       <select id="yearSel"></select>
     </div>
-
     <div class="cal-weekdays">
       <span>Su</span><span>Mo</span><span>Tu</span><span>We</span>
       <span>Th</span><span>Fr</span><span>Sa</span>
     </div>
     <div class="cal-days" id="calDays"></div>
-
     <div class="day-detail" id="dayDetail">
       <div class="day-detail-title" id="dayDetailTitle"></div>
       <div id="dayDetailItems"></div>
     </div>
   </div>
 
-  <!-- Items panel -->
   <div class="items-panel">
     <div class="items-header">
       <div class="items-title">Pending Tasks</div>
@@ -483,27 +486,25 @@
 
 <script>
   /* ── state ── */
-  let items        = JSON.parse(localStorage.getItem('honeydew') || '[]');
-  let expandedId   = null;
-  let confirmId    = null;
-  let showDone     = false;
-  let selectedDay  = null;   // { year, month, day }
+  let items       = [];
+  let expandedId  = null;
+  let confirmId   = null;
+  let showDone    = false;
+  let selectedDay = null;
+  let busy        = false;
 
-  const now      = new Date();
-  const todayY   = now.getFullYear();
-  const todayM   = now.getMonth();
-  const todayD   = now.getDate();
-  let   viewYear = todayY;
-  let   viewMonth= todayM;
+  const now    = new Date();
+  const todayY = now.getFullYear();
+  const todayM = now.getMonth();
+  const todayD = now.getDate();
+  let viewYear  = todayY;
+  let viewMonth = todayM;
 
-  const MONTHS = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ];
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
 
-  /* ── persistence ── */
-  function save() { localStorage.setItem('honeydew', JSON.stringify(items)); }
-  function uid()  { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+  /* ── utils ── */
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
   function todayStr() {
     return `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`;
@@ -512,11 +513,34 @@
   function fmtDate(ds) {
     if (!ds) return '';
     const [y,m,d] = ds.split('-').map(Number);
-    return new Date(y, m-1, d).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+    return new Date(y, m-1, d).toLocaleDateString('en-US',
+      { month:'short', day:'numeric', year:'numeric' });
   }
 
   function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── toast ── */
+  let toastTimer;
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  }
+
+  /* ── API ── */
+  async function api(method, path, body) {
+    const res = await fetch(path, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    return res.json();
   }
 
   /* ── calendar ── */
@@ -524,10 +548,9 @@
     const mSel = document.getElementById('monthSel');
     mSel.innerHTML = MONTHS.map((m,i) =>
       `<option value="${i}" ${i===viewMonth?'selected':''}>${m}</option>`).join('');
-
     const ySel = document.getElementById('yearSel');
     let yHtml = '';
-    for (let y = todayY-5; y <= todayY+5; y++)
+    for (let y = todayY - 5; y <= todayY + 5; y++)
       yHtml += `<option value="${y}" ${y===viewYear?'selected':''}>${y}</option>`;
     ySel.innerHTML = yHtml;
   }
@@ -543,8 +566,7 @@
     const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
 
     let html = '';
-    for (let i = 0; i < firstDow; i++)
-      html += '<div class="cal-day"></div>';
+    for (let i = 0; i < firstDow; i++) html += '<div class="cal-day"></div>';
 
     for (let d = 1; d <= daysInMonth; d++) {
       const done    = completedOnDay(viewYear, viewMonth, d);
@@ -559,17 +581,14 @@
       if (isToday)     cls += ' today';
       if (isSel)       cls += ' selected-day';
 
-      const badge = done.length
-        ? `<span class="cal-badge">${done.length}</span>` : '';
-      const attr  = done.length
-        ? `data-day="${d}" style="cursor:pointer"` : '';
+      const badge = done.length ? `<span class="cal-badge">${done.length}</span>` : '';
+      const attr  = done.length ? `data-day="${d}"` : '';
 
       html += `<div class="${cls}" ${attr}>${d}${badge}</div>`;
     }
 
     document.getElementById('calDays').innerHTML = html;
 
-    // click handlers for days with completed items
     document.querySelectorAll('.cal-day[data-day]').forEach(el => {
       el.addEventListener('click', () => {
         const d = parseInt(el.dataset.day);
@@ -597,22 +616,20 @@
     if (!done.length) { panel.classList.remove('visible'); return; }
 
     const dateLabel = new Date(selectedDay.year, selectedDay.month, selectedDay.day)
-      .toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+      .toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 
     document.getElementById('dayDetailTitle').textContent =
       `${dateLabel} — ${done.length} completed`;
-
     document.getElementById('dayDetailItems').innerHTML = done.map(it =>
       `<div class="day-detail-item">
          <span class="check">✓</span>
          <span>${esc(it.name)}</span>
-       </div>`
-    ).join('');
+       </div>`).join('');
 
     panel.classList.add('visible');
   }
 
-  /* ── items list ── */
+  /* ── items ── */
   function renderItems() {
     const pending   = items.filter(it => !it.completed);
     const completed = items.filter(it =>  it.completed);
@@ -629,7 +646,6 @@
       attachHandlers();
     }
 
-    // completed section
     const sec = document.getElementById('completedSection');
     if (completed.length) {
       sec.style.display = 'block';
@@ -649,8 +665,8 @@
   }
 
   function renderCard(item) {
-    const expanded  = expandedId === item.id;
-    const confirming= confirmId  === item.id;
+    const expanded   = expandedId === item.id;
+    const confirming = confirmId  === item.id;
 
     const detail = expanded ? `
       <div class="item-detail">
@@ -663,8 +679,8 @@
           ${confirming
             ? `<span class="confirm-row">
                  Are you sure?
-                 <button class="btn btn-danger"  data-confirm="${item.id}">Yes, Remove</button>
-                 <button class="btn btn-ghost"   data-cancel="${item.id}">Cancel</button>
+                 <button class="btn btn-danger" data-confirm="${item.id}">Yes, Remove</button>
+                 <button class="btn btn-ghost"  data-cancel="${item.id}">Cancel</button>
                </span>`
             : `<button class="btn btn-ghost" data-remove="${item.id}">Remove</button>`
           }
@@ -693,19 +709,27 @@
     );
 
     document.querySelectorAll('[data-complete]').forEach(el =>
-      el.addEventListener('click', e => {
+      el.addEventListener('click', async e => {
         e.stopPropagation();
-        const id  = el.dataset.complete;
-        const inp = document.getElementById(`cd_${id}`);
-        const it  = items.find(i => i.id === id);
-        if (it) {
-          it.completed     = true;
-          it.completedDate = inp ? inp.value : todayStr();
+        if (busy) return;
+        busy = true;
+        el.disabled = true;
+        const id   = el.dataset.complete;
+        const inp  = document.getElementById(`cd_${id}`);
+        const date = inp ? inp.value : todayStr();
+        try {
+          const updated = await api('PATCH', `/api/items/${id}`, { completed: true, completedDate: date });
+          const idx = items.findIndex(i => i.id === id);
+          if (idx !== -1) items[idx] = updated;
           expandedId = null;
           confirmId  = null;
-          save();
           renderCalendar();
           renderItems();
+        } catch {
+          toast('Could not save. Check server.', true);
+          el.disabled = false;
+        } finally {
+          busy = false;
         }
       })
     );
@@ -719,13 +743,25 @@
     );
 
     document.querySelectorAll('[data-confirm]').forEach(el =>
-      el.addEventListener('click', e => {
+      el.addEventListener('click', async e => {
         e.stopPropagation();
-        items     = items.filter(i => i.id !== el.dataset.confirm);
-        expandedId= null;
-        confirmId = null;
-        save();
-        renderItems();
+        if (busy) return;
+        busy = true;
+        el.disabled = true;
+        const id = el.dataset.confirm;
+        try {
+          await api('DELETE', `/api/items/${id}`);
+          items      = items.filter(i => i.id !== id);
+          expandedId = null;
+          confirmId  = null;
+          renderCalendar();
+          renderItems();
+        } catch {
+          toast('Could not delete. Check server.', true);
+          el.disabled = false;
+        } finally {
+          busy = false;
+        }
       })
     );
 
@@ -738,22 +774,33 @@
     );
   }
 
-  /* ── wire up static elements ── */
+  /* ── add form ── */
   document.getElementById('addBtn').addEventListener('click', () => {
     const form = document.getElementById('addForm');
     const open = form.classList.toggle('visible');
     if (open) document.getElementById('newItemInput').focus();
   });
 
-  function submitNewItem() {
+  async function submitNewItem() {
     const inp  = document.getElementById('newItemInput');
     const name = inp.value.trim();
-    if (!name) return;
-    items.push({ id: uid(), name, completed: false, completedDate: null });
-    save();
-    inp.value = '';
-    document.getElementById('addForm').classList.remove('visible');
-    renderItems();
+    if (!name || busy) return;
+    busy = true;
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    try {
+      const item = await api('POST', '/api/items',
+        { id: uid(), name, completed: false, completedDate: null });
+      items.push(item);
+      inp.value = '';
+      document.getElementById('addForm').classList.remove('visible');
+      renderItems();
+    } catch {
+      toast('Could not save. Check server.', true);
+    } finally {
+      saveBtn.disabled = false;
+      busy = false;
+    }
   }
 
   document.getElementById('saveBtn').addEventListener('click', submitNewItem);
@@ -772,14 +819,14 @@
   });
 
   document.getElementById('monthSel').addEventListener('change', e => {
-    viewMonth  = parseInt(e.target.value);
-    selectedDay= null;
+    viewMonth   = parseInt(e.target.value);
+    selectedDay = null;
     renderCalendar();
   });
 
   document.getElementById('yearSel').addEventListener('change', e => {
-    viewYear   = parseInt(e.target.value);
-    selectedDay= null;
+    viewYear    = parseInt(e.target.value);
+    selectedDay = null;
     renderCalendar();
   });
 
@@ -791,8 +838,18 @@
   });
 
   /* ── boot ── */
-  renderCalendar();
-  renderItems();
+  async function init() {
+    try {
+      items = await api('GET', '/api/items');
+    } catch {
+      toast('Could not reach server.', true);
+      items = [];
+    }
+    renderCalendar();
+    renderItems();
+  }
+
+  init();
 </script>
 </body>
 </html>
