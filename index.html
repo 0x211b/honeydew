@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Honeydew — Honey Do List</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:      #2d6a4f;
+      --green-dark: #1b4332;
+      --green-light:#e8f5e9;
+      --green-mid:  #b7e4c7;
+      --red:        #e63946;
+      --red-dark:   #c1121f;
+      --text:       #1a1a2e;
+      --muted:      #888;
+      --border:     #e0e0e0;
+      --bg:         #f0f4f8;
+      --card:       #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--green);
+      color: #fff;
+      padding: 14px 24px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+
+    .app {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      flex: 1;
+      align-items: flex-start;
+    }
+
+    /* ── Calendar panel ── */
+    .calendar-panel {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 18px;
+      width: 300px;
+      min-width: 280px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.08);
+      position: sticky;
+      top: 20px;
+    }
+
+    .cal-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .cal-controls select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      background: #fafafa;
+      color: var(--text);
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .cal-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      border-radius: 8px;
+      position: relative;
+      cursor: default;
+      transition: background .15s;
+    }
+
+    .cal-day.has-completed {
+      background: var(--green-light);
+      cursor: pointer;
+    }
+
+    .cal-day.has-completed:hover {
+      background: var(--green-mid);
+    }
+
+    .cal-day.today {
+      background: var(--green) !important;
+      color: #fff !important;
+      font-weight: 700;
+    }
+
+    .cal-day.today .cal-badge {
+      background: rgba(255,255,255,.85);
+      color: var(--green-dark);
+    }
+
+    .cal-day.selected-day {
+      outline: 2px solid var(--green);
+      outline-offset: -2px;
+    }
+
+    .cal-day.today.selected-day {
+      outline: 2px solid #fff;
+    }
+
+    .cal-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      background: var(--green);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0 4px;
+      line-height: 1.5;
+      position: absolute;
+      bottom: 2px;
+    }
+
+    /* Day detail panel under calendar */
+    .day-detail {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      display: none;
+    }
+
+    .day-detail.visible { display: block; }
+
+    .day-detail-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--green-dark);
+      margin-bottom: 8px;
+    }
+
+    .day-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #444;
+      padding: 5px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .day-detail-item:last-child { border-bottom: none; }
+
+    .day-detail-item .check { color: var(--green); }
+
+    /* ── Items panel ── */
+    .items-panel {
+      flex: 1;
+      background: var(--card);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.08);
+      min-width: 0;
+    }
+
+    .items-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .items-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .add-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--green);
+      color: #fff;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, transform .1s;
+      flex-shrink: 0;
+    }
+
+    .add-btn:hover { background: var(--green-dark); }
+    .add-btn:active { transform: scale(.93); }
+
+    /* Add form */
+    .add-form {
+      background: #f6fdf9;
+      border: 1px solid var(--green-mid);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .add-form.visible { display: block; }
+
+    .add-form input[type="text"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .add-form input[type="text"]:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(45,106,79,.12);
+    }
+
+    .form-actions { display: flex; gap: 8px; }
+
+    /* Buttons */
+    .btn {
+      padding: 7px 16px;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-primary  { background: var(--green);   color: #fff; }
+    .btn-primary:hover { background: var(--green-dark); }
+
+    .btn-ghost    { background: #eee; color: #444; }
+    .btn-ghost:hover { background: #ddd; }
+
+    .btn-danger   { background: var(--red);   color: #fff; }
+    .btn-danger:hover { background: var(--red-dark); }
+
+    /* Item list */
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+
+    .empty-icon { font-size: 2.8rem; margin-bottom: 10px; }
+
+    /* Item card */
+    .item-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: box-shadow .15s;
+    }
+
+    .item-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      padding: 13px 16px;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .item-row:hover { background: #fafafa; }
+
+    .item-circle {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .item-name {
+      flex: 1;
+      font-size: 0.97rem;
+      color: var(--text);
+    }
+
+    .item-chevron {
+      font-size: 0.7rem;
+      color: var(--muted);
+      transition: transform .2s;
+    }
+
+    .item-card.expanded .item-chevron { transform: rotate(180deg); }
+
+    /* Expanded detail */
+    .item-detail {
+      display: none;
+      padding: 14px 16px;
+      border-top: 1px solid #f0f0f0;
+      background: #fafcfb;
+    }
+
+    .item-card.expanded .item-detail { display: block; }
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .detail-row label {
+      font-size: 0.88rem;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    .detail-row input[type="date"] {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 0.88rem;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .confirm-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--red);
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+
+    /* Completed section */
+    .completed-section {
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .completed-toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .completed-toggle-btn:hover { color: var(--green); }
+
+    .completed-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+    .completed-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--green-light);
+      border-radius: 8px;
+      background: #f6fdf9;
+    }
+
+    .done-check { color: var(--green); font-size: 1rem; }
+
+    .completed-name {
+      flex: 1;
+      font-size: 0.9rem;
+      color: #666;
+      text-decoration: line-through;
+    }
+
+    .completed-date-tag {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>🍈 Honeydew — Honey Do List</header>
+
+<div class="app">
+
+  <!-- Calendar panel -->
+  <div class="calendar-panel">
+    <div class="cal-controls">
+      <select id="monthSel"></select>
+      <select id="yearSel"></select>
+    </div>
+
+    <div class="cal-weekdays">
+      <span>Su</span><span>Mo</span><span>Tu</span><span>We</span>
+      <span>Th</span><span>Fr</span><span>Sa</span>
+    </div>
+    <div class="cal-days" id="calDays"></div>
+
+    <div class="day-detail" id="dayDetail">
+      <div class="day-detail-title" id="dayDetailTitle"></div>
+      <div id="dayDetailItems"></div>
+    </div>
+  </div>
+
+  <!-- Items panel -->
+  <div class="items-panel">
+    <div class="items-header">
+      <div class="items-title">Pending Tasks</div>
+      <button class="add-btn" id="addBtn" title="Add item">+</button>
+    </div>
+
+    <div class="add-form" id="addForm">
+      <input type="text" id="newItemInput" placeholder="What needs to be done?" maxlength="120" />
+      <div class="form-actions">
+        <button class="btn btn-primary" id="saveBtn">Add Item</button>
+        <button class="btn btn-ghost"   id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+
+    <div class="items-list" id="itemsList"></div>
+
+    <div class="completed-section" id="completedSection" style="display:none">
+      <button class="completed-toggle-btn" id="completedToggle">
+        <span id="toggleArrow">▶</span>
+        <span id="toggleLabel">Completed (0)</span>
+      </button>
+      <div class="completed-list" id="completedList" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /* ── state ── */
+  let items        = JSON.parse(localStorage.getItem('honeydew') || '[]');
+  let expandedId   = null;
+  let confirmId    = null;
+  let showDone     = false;
+  let selectedDay  = null;   // { year, month, day }
+
+  const now      = new Date();
+  const todayY   = now.getFullYear();
+  const todayM   = now.getMonth();
+  const todayD   = now.getDate();
+  let   viewYear = todayY;
+  let   viewMonth= todayM;
+
+  const MONTHS = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+
+  /* ── persistence ── */
+  function save() { localStorage.setItem('honeydew', JSON.stringify(items)); }
+  function uid()  { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+  function todayStr() {
+    return `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`;
+  }
+
+  function fmtDate(ds) {
+    if (!ds) return '';
+    const [y,m,d] = ds.split('-').map(Number);
+    return new Date(y, m-1, d).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── calendar ── */
+  function populateSelects() {
+    const mSel = document.getElementById('monthSel');
+    mSel.innerHTML = MONTHS.map((m,i) =>
+      `<option value="${i}" ${i===viewMonth?'selected':''}>${m}</option>`).join('');
+
+    const ySel = document.getElementById('yearSel');
+    let yHtml = '';
+    for (let y = todayY-5; y <= todayY+5; y++)
+      yHtml += `<option value="${y}" ${y===viewYear?'selected':''}>${y}</option>`;
+    ySel.innerHTML = yHtml;
+  }
+
+  function completedOnDay(y, m, d) {
+    const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return items.filter(it => it.completed && it.completedDate === key);
+  }
+
+  function renderCalendar() {
+    populateSelects();
+    const firstDow    = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+    let html = '';
+    for (let i = 0; i < firstDow; i++)
+      html += '<div class="cal-day"></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const done    = completedOnDay(viewYear, viewMonth, d);
+      const isToday = viewYear===todayY && viewMonth===todayM && d===todayD;
+      const isSel   = selectedDay &&
+                      selectedDay.year===viewYear &&
+                      selectedDay.month===viewMonth &&
+                      selectedDay.day===d;
+
+      let cls = 'cal-day';
+      if (done.length) cls += ' has-completed';
+      if (isToday)     cls += ' today';
+      if (isSel)       cls += ' selected-day';
+
+      const badge = done.length
+        ? `<span class="cal-badge">${done.length}</span>` : '';
+      const attr  = done.length
+        ? `data-day="${d}" style="cursor:pointer"` : '';
+
+      html += `<div class="${cls}" ${attr}>${d}${badge}</div>`;
+    }
+
+    document.getElementById('calDays').innerHTML = html;
+
+    // click handlers for days with completed items
+    document.querySelectorAll('.cal-day[data-day]').forEach(el => {
+      el.addEventListener('click', () => {
+        const d = parseInt(el.dataset.day);
+        if (selectedDay &&
+            selectedDay.year===viewYear &&
+            selectedDay.month===viewMonth &&
+            selectedDay.day===d) {
+          selectedDay = null;
+        } else {
+          selectedDay = { year: viewYear, month: viewMonth, day: d };
+        }
+        renderCalendar();
+        renderDayDetail();
+      });
+    });
+
+    renderDayDetail();
+  }
+
+  function renderDayDetail() {
+    const panel = document.getElementById('dayDetail');
+    if (!selectedDay) { panel.classList.remove('visible'); return; }
+
+    const done = completedOnDay(selectedDay.year, selectedDay.month, selectedDay.day);
+    if (!done.length) { panel.classList.remove('visible'); return; }
+
+    const dateLabel = new Date(selectedDay.year, selectedDay.month, selectedDay.day)
+      .toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+
+    document.getElementById('dayDetailTitle').textContent =
+      `${dateLabel} — ${done.length} completed`;
+
+    document.getElementById('dayDetailItems').innerHTML = done.map(it =>
+      `<div class="day-detail-item">
+         <span class="check">✓</span>
+         <span>${esc(it.name)}</span>
+       </div>`
+    ).join('');
+
+    panel.classList.add('visible');
+  }
+
+  /* ── items list ── */
+  function renderItems() {
+    const pending   = items.filter(it => !it.completed);
+    const completed = items.filter(it =>  it.completed);
+
+    const list = document.getElementById('itemsList');
+
+    if (!pending.length) {
+      list.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>Nothing pending! Tap <strong>+</strong> to add a task.</div>
+      </div>`;
+    } else {
+      list.innerHTML = pending.map(renderCard).join('');
+      attachHandlers();
+    }
+
+    // completed section
+    const sec = document.getElementById('completedSection');
+    if (completed.length) {
+      sec.style.display = 'block';
+      document.getElementById('toggleLabel').textContent = `Completed (${completed.length})`;
+      if (showDone) {
+        document.getElementById('completedList').innerHTML =
+          completed.map(it => `
+            <div class="completed-card">
+              <span class="done-check">✓</span>
+              <span class="completed-name">${esc(it.name)}</span>
+              <span class="completed-date-tag">${fmtDate(it.completedDate)}</span>
+            </div>`).join('');
+      }
+    } else {
+      sec.style.display = 'none';
+    }
+  }
+
+  function renderCard(item) {
+    const expanded  = expandedId === item.id;
+    const confirming= confirmId  === item.id;
+
+    const detail = expanded ? `
+      <div class="item-detail">
+        <div class="detail-row">
+          <label for="cd_${item.id}">Completion date:</label>
+          <input type="date" id="cd_${item.id}" value="${todayStr()}" max="${todayStr()}">
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" data-complete="${item.id}">Mark Complete</button>
+          ${confirming
+            ? `<span class="confirm-row">
+                 Are you sure?
+                 <button class="btn btn-danger"  data-confirm="${item.id}">Yes, Remove</button>
+                 <button class="btn btn-ghost"   data-cancel="${item.id}">Cancel</button>
+               </span>`
+            : `<button class="btn btn-ghost" data-remove="${item.id}">Remove</button>`
+          }
+        </div>
+      </div>` : '';
+
+    return `
+      <div class="item-card ${expanded?'expanded':''}" data-id="${item.id}">
+        <div class="item-row" data-toggle="${item.id}">
+          <div class="item-circle"></div>
+          <div class="item-name">${esc(item.name)}</div>
+          <div class="item-chevron">▼</div>
+        </div>
+        ${detail}
+      </div>`;
+  }
+
+  function attachHandlers() {
+    document.querySelectorAll('[data-toggle]').forEach(el =>
+      el.addEventListener('click', () => {
+        const id = el.dataset.toggle;
+        expandedId = (expandedId === id) ? null : id;
+        if (expandedId !== confirmId) confirmId = null;
+        renderItems();
+      })
+    );
+
+    document.querySelectorAll('[data-complete]').forEach(el =>
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const id  = el.dataset.complete;
+        const inp = document.getElementById(`cd_${id}`);
+        const it  = items.find(i => i.id === id);
+        if (it) {
+          it.completed     = true;
+          it.completedDate = inp ? inp.value : todayStr();
+          expandedId = null;
+          confirmId  = null;
+          save();
+          renderCalendar();
+          renderItems();
+        }
+      })
+    );
+
+    document.querySelectorAll('[data-remove]').forEach(el =>
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        confirmId = el.dataset.remove;
+        renderItems();
+      })
+    );
+
+    document.querySelectorAll('[data-confirm]').forEach(el =>
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        items     = items.filter(i => i.id !== el.dataset.confirm);
+        expandedId= null;
+        confirmId = null;
+        save();
+        renderItems();
+      })
+    );
+
+    document.querySelectorAll('[data-cancel]').forEach(el =>
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        confirmId = null;
+        renderItems();
+      })
+    );
+  }
+
+  /* ── wire up static elements ── */
+  document.getElementById('addBtn').addEventListener('click', () => {
+    const form = document.getElementById('addForm');
+    const open = form.classList.toggle('visible');
+    if (open) document.getElementById('newItemInput').focus();
+  });
+
+  function submitNewItem() {
+    const inp  = document.getElementById('newItemInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    items.push({ id: uid(), name, completed: false, completedDate: null });
+    save();
+    inp.value = '';
+    document.getElementById('addForm').classList.remove('visible');
+    renderItems();
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', submitNewItem);
+
+  document.getElementById('newItemInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter')  submitNewItem();
+    if (e.key === 'Escape') {
+      document.getElementById('addForm').classList.remove('visible');
+      document.getElementById('newItemInput').value = '';
+    }
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    document.getElementById('addForm').classList.remove('visible');
+    document.getElementById('newItemInput').value = '';
+  });
+
+  document.getElementById('monthSel').addEventListener('change', e => {
+    viewMonth  = parseInt(e.target.value);
+    selectedDay= null;
+    renderCalendar();
+  });
+
+  document.getElementById('yearSel').addEventListener('change', e => {
+    viewYear   = parseInt(e.target.value);
+    selectedDay= null;
+    renderCalendar();
+  });
+
+  document.getElementById('completedToggle').addEventListener('click', () => {
+    showDone = !showDone;
+    document.getElementById('toggleArrow').textContent = showDone ? '▼' : '▶';
+    document.getElementById('completedList').style.display = showDone ? 'flex' : 'none';
+    renderItems();
+  });
+
+  /* ── boot ── */
+  renderCalendar();
+  renderItems();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+Honeydew Service Commands
+=========================
+
+Stop the service:
+  systemctl --user stop honeydew
+
+Restart the service:
+  systemctl --user restart honeydew
+
+Check service status:
+  systemctl --user status honeydew
+
+View live logs:
+  journalctl --user -u honeydew -f
+
+Access the app (home network):
+  http://192.168.20.200:8080
